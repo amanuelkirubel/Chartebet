@@ -1,0 +1,6 @@
+{
+  "name": "Chartebet - Sports Betting & Fast Games Arena",
+  "description": "Official Chartebet sports betting platform with live fixtures, 7 continents directory, fast cashier terminal, Aviator, Keno 80, and VIP support desk.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
