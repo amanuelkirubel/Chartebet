@@ -420,6 +420,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {authMode === 'register' && (
+              <div className="p-3 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-emerald-500/20 border border-amber-500/40 rounded-xl flex items-center gap-2.5">
+                <span className="text-xl">🎁</span>
+                <div>
+                  <div className="font-bold text-xs text-yellow-300">
+                    {currentLang === 'am' ? 'የ20 ብር ጅማሮ ቦነስ (20 ETB Bonus)!' : '20 ETB Free Welcome Bonus!'}
+                  </div>
+                  <div className="text-[10px] text-slate-300">
+                    {currentLang === 'am'
+                      ? 'እያንዳንዱ አዲስ አካውንት በ20 ብር ነጻ ቦነስ ይጀምራል!'
+                      : 'Every new account starts with a 20 ETB instant bonus upon registration.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {authMode === 'register' && (
               <div>
                 <label className="text-[11px] font-bold text-slate-300 block mb-1">
                   {currentLang === 'am' ? 'ሙሉ ስም / የተጠቃሚ ስም' : 'Full Name / Username'}

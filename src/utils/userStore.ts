@@ -163,7 +163,7 @@ export function registerNewUser(data: {
     email: isEmail ? cleanId : undefined,
     phone: !isEmail ? cleanId : undefined,
     password: cleanPass,
-    balance: 50.0, // Welcome signup bonus
+    balance: 20.0, // Every account starts with bonus 20 birr
     currency: data.currency || 'ETB',
     role: 'customer',
     createdAt: new Date().toISOString(),

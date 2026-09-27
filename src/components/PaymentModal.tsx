@@ -8,13 +8,15 @@ import {
   AlertCircle, 
   Copy, 
   Check, 
-  UploadCloud, 
   Clock, 
-  FileText
+  Send,
+  ExternalLink,
+  ShieldCheck,
+  MessageCircle,
+  HelpCircle
 } from 'lucide-react';
 import { UserAccount, Language } from '../types';
 import { 
-  CHARTE_DEPOSIT_ACCOUNTS, 
   addDepositRequest, 
   addWithdrawalRequest 
 } from '../utils/betAndTransactionStore';
@@ -27,6 +29,9 @@ interface PaymentModalProps {
   currentLang: Language;
 }
 
+const TELEGRAM_HANDLE = '@Chartebetpayment';
+const TELEGRAM_URL = 'https://t.me/Chartebetpayment';
+
 export const PaymentModal: React.FC<PaymentModalProps> = ({
   isOpen,
   onClose,
@@ -35,14 +40,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   const [activeMode, setActiveMode] = useState<'deposit' | 'withdraw'>('deposit');
 
-  // Deposit States
-  const [depositCategory, setDepositCategory] = useState<'all' | 'telebirr_mpesa' | 'commercial_banks'>('all');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('telebirr');
+  // Deposit Notification Form States
   const [depositAmount, setDepositAmount] = useState<number>(500);
-  const [txnReference, setTxnReference] = useState('');
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptDataUrl, setReceiptDataUrl] = useState<string | null>(null);
-  const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
+  const [telegramUsername, setTelegramUsername] = useState('');
+  const [copiedTelegram, setCopiedTelegram] = useState(false);
 
   // Withdraw States
   const [withdrawName, setWithdrawName] = useState(user.username || '');
@@ -57,22 +58,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleCopyAccount = (accNum: string, accId: string) => {
-    navigator.clipboard.writeText(accNum);
-    setCopiedAccount(accId);
-    setTimeout(() => setCopiedAccount(null), 2000);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setReceiptFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setReceiptDataUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleCopyTelegram = () => {
+    navigator.clipboard.writeText(TELEGRAM_HANDLE);
+    setCopiedTelegram(true);
+    setTimeout(() => setCopiedTelegram(false), 2000);
   };
 
   const handleDepositSubmit = (e: React.FormEvent) => {
@@ -88,27 +77,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       return;
     }
 
-    if (depositAmount > 25000) {
+    if (depositAmount > 50000) {
       setErrorMsg(
         currentLang === 'am'
-          ? 'ከፍተኛው የማስገቢያ መጠን 25,000 ብር ነው።'
-          : 'Maximum deposit amount is 25,000 ETB.'
+          ? 'ከፍተኛው የማስገቢያ መጠን 50,000 ብር ነው።'
+          : 'Maximum deposit amount is 50,000 ETB.'
       );
       return;
     }
-
-    if (!txnReference.trim() && !receiptFile) {
-      setErrorMsg(
-        currentLang === 'am'
-          ? 'እባክዎ የግብይት ማረጋገጫ ቁጥር (Txn Number) ወይም ደረሰኝ (Photo/PDF) ያስገቡ።'
-          : 'Please enter transaction reference number or attach receipt photo/PDF.'
-      );
-      return;
-    }
-
-    const selectedAcc =
-      CHARTE_DEPOSIT_ACCOUNTS.find((a) => a.id === selectedAccountId) ||
-      CHARTE_DEPOSIT_ACCOUNTS[0];
 
     setIsSubmitting(true);
     setTimeout(() => {
@@ -117,21 +93,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         userPhoneOrEmail: user.phone || user.email || 'Customer',
         userName: user.username,
         amount: depositAmount,
-        bankName: selectedAcc.bankName,
-        accountNumber: selectedAcc.accountNumber,
-        accountHolder: selectedAcc.accountHolder,
-        transactionReference: txnReference.trim(),
-        receiptFileName: receiptFile?.name,
-        receiptFileUrl: receiptDataUrl || undefined,
+        bankName: `Telegram Agent (${TELEGRAM_HANDLE})`,
+        accountNumber: TELEGRAM_HANDLE,
+        accountHolder: 'Chartebet Official Payment Agent',
+        transactionReference: telegramUsername.trim() || `TG-REQ-${Date.now().toString().slice(-6)}`,
       });
 
       setIsSubmitting(false);
       setSuccessInfo({
-        title: currentLang === 'am' ? 'የገንዘብ ማስገቢያ ጥያቄ ተልኳል!' : 'Deposit Request Submitted!',
+        title: currentLang === 'am' ? 'የማስገቢያ ጥያቄ ተመዝግቧል!' : 'Deposit Notification Submitted!',
         message:
           currentLang === 'am'
-            ? 'ጥያቄዎ ለአስተዳዳሪ ቀርቧል። እባክዎ የአስተዳዳሪውን ማረጋገጫ ይጠብቁ። ማረጋገጫ እንዳገኘ ገንዘቡ በቀጥታ ወደ አካውንትዎ ገቢ ይደረጋል።'
-            : 'Your deposit request has been submitted to the admin station. Please wait for admin approval. Once approved, the funds will be immediately credited to your balance.',
+            ? `የ${depositAmount} ብር ማስገቢያ ጥያቄዎ ተመዝግቧል። እባክዎ በቀጥታ በቴሌግራም ${TELEGRAM_HANDLE} መልእክት በመላክ ሂደቱን ያጠናቁ። የአስተዳዳሪው ማረጋገጫ እንዳገኘ ወዲያውኑ ገቢ ይደረጋል።`
+            : `Your deposit notification of ${depositAmount} ETB is recorded. Please message our agent on Telegram ${TELEGRAM_HANDLE} to complete the transfer. Once confirmed, your balance will be topped up immediately.`,
       });
     }, 600);
   };
@@ -202,16 +176,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         title: currentLang === 'am' ? 'የገንዘብ ማውጣት ጥያቄ ተልኳል!' : 'Withdrawal Request Submitted!',
         message:
           currentLang === 'am'
-            ? 'የማውጣት ጥያቄዎ በተሳካ ሁኔታ ቀርቧል። እባክዎ የአስተዳዳሪውን ማረጋገጫ ይጠብቁ። አስተዳዳሪው እንዳረጋገጠ ገንዘቡ ወደ ሂሳብዎ ይተላለፋል እንዲሁም ከአካውንትዎ ይቀነሳል።'
-            : 'Your withdrawal request has been submitted. Please wait for admin approval. Once admin approves, the amount will be processed and deducted from your account.',
+            ? 'የማውጣት ጥያቄዎ በተሳካ ሁኔታ ቀርቧል። እባክዎ የአስተዳዳሪውን ማረጋገጫ ይጠብቁ። አስተዳዳሪው እንዳረጋገጠ ገንዘቡ ወደ ሂሳብዎ ይተላለፋል እንዲሁም ከአካውንትዎ ይቀነሳል። እንዲሁም በቴሌግራም @Chartebetpayment ማረጋገጥ ይችላሉ።'
+            : 'Your withdrawal request has been submitted. Please wait for admin approval. Once admin approves, the amount will be processed and deducted from your account. You can also notify @Chartebetpayment for fast tracking.',
       });
     }, 600);
   };
-
-  const filteredDepositAccounts = CHARTE_DEPOSIT_ACCOUNTS.filter((acc) => {
-    if (depositCategory === 'all') return true;
-    return acc.category === depositCategory;
-  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-sm animate-in fade-in overflow-y-auto">
@@ -223,7 +192,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div>
               <h3 className="font-bold text-base text-white">
                 {activeMode === 'deposit'
-                  ? currentLang === 'am' ? 'ገንዘብ አስገባ (Deposit)' : 'Deposit Funds'
+                  ? currentLang === 'am' ? 'ገንዘብ አስገባ (Deposit via Telegram)' : 'Deposit Funds via Telegram'
                   : currentLang === 'am' ? 'ገንዘብ አውጣ (Withdraw)' : 'Withdraw Earnings'}
               </h3>
               <p className="text-[11px] text-slate-400">
@@ -284,18 +253,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <span className="text-xs text-slate-300">{user.currency}</span>
               </span>
             </div>
-            <div className="text-right text-[10px] text-slate-400">
-              {activeMode === 'deposit' ? (
-                <span>Min: 20 ETB | Max: 25,000 ETB</span>
-              ) : (
-                <span>Min: 200 ETB | Max: 25,000 ETB (24h)</span>
-              )}
+            <div className="text-right text-[10px]">
+              <span className="bg-amber-400/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold">
+                🎁 {currentLang === 'am' ? '20 ብር ጅማሮ ቦነስ' : '20 ETB Starter Bonus Active'}
+              </span>
             </div>
           </div>
 
           {/* Success Message / Info Modal */}
           {successInfo && (
-            <div className="p-4 bg-emerald-950/80 border border-emerald-500 rounded-xl space-y-2 text-emerald-200 animate-in fade-in">
+            <div className="p-4 bg-emerald-950/80 border border-emerald-500 rounded-xl space-y-3 text-emerald-200 animate-in fade-in">
               <div className="flex items-center gap-2 font-bold text-sm text-emerald-400">
                 <CheckCircle2 className="w-5 h-5 shrink-0" />
                 <span>{successInfo.title}</span>
@@ -303,15 +270,27 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <p className="text-xs leading-relaxed text-slate-200">
                 {successInfo.message}
               </p>
-              <button
-                onClick={() => {
-                  setSuccessInfo(null);
-                  onClose();
-                }}
-                className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black rounded-lg text-xs transition cursor-pointer"
-              >
-                {currentLang === 'am' ? 'እሺ (ተረድቻለሁ)' : 'OK, Understood'}
-              </button>
+              <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                <a
+                  href={TELEGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-lg text-xs transition text-center flex items-center justify-center gap-2 cursor-pointer shadow"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Open Telegram {TELEGRAM_HANDLE}</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <button
+                  onClick={() => {
+                    setSuccessInfo(null);
+                    onClose();
+                  }}
+                  className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg text-xs transition cursor-pointer"
+                >
+                  {currentLang === 'am' ? 'ዝጋ' : 'Close'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -322,200 +301,212 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           )}
 
-          {/* DEPOSIT FORM */}
+          {/* ========================================================= */}
+          {/* DEPOSIT SECTION: TELEGRAM AGENT ONLY (NO LOCAL ACCOUNTS) */}
+          {/* ========================================================= */}
           {activeMode === 'deposit' && !successInfo && (
-            <form onSubmit={handleDepositSubmit} className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1.5">
-                  {currentLang === 'am' ? 'የክፍያ ሂሳብ ይምረጡ' : 'Select Official Payment Account'}:
-                </label>
-                <div className="grid grid-cols-3 gap-1.5 bg-[#0e131d] p-1 rounded-xl border border-slate-800 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setDepositCategory('all')}
-                    className={`py-1.5 rounded-lg font-bold transition text-center cursor-pointer ${
-                      depositCategory === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    All Accounts
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDepositCategory('telebirr_mpesa')}
-                    className={`py-1.5 rounded-lg font-bold transition text-center truncate px-1 cursor-pointer ${
-                      depositCategory === 'telebirr_mpesa' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Telebirr &amp; M-Pesa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDepositCategory('commercial_banks')}
-                    className={`py-1.5 rounded-lg font-bold transition text-center truncate px-1 cursor-pointer ${
-                      depositCategory === 'commercial_banks' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Commercial Banks
-                  </button>
+            <div className="space-y-4">
+              {/* Regional Payment Notice */}
+              <div className="p-3.5 bg-blue-950/60 border border-blue-500/50 rounded-2xl flex items-start gap-3">
+                <div className="p-2 bg-blue-600/30 rounded-xl border border-blue-500/40 text-blue-400 shrink-0 mt-0.5">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
+                    <span>{currentLang === 'am' ? 'በቴሌግራም ገንዘብ ያስገቡ' : 'Deposit via Official Telegram Agent'}</span>
+                    <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono px-1.5 py-0.2 rounded-full uppercase">
+                      Direct Support
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-blue-200 leading-relaxed">
+                    {currentLang === 'am'
+                      ? 'በአገራችን የኦንላይን የውርርድ ክፍያ ስለማይሰራ፣ ወደ አካውንትዎ ገንዘብ ለማስገባት (Deposit) እባክዎ በቀጥታ በቴሌግራም ያግኙን።'
+                      : 'Online betting payment is currently unavailable in this country. To safely deposit funds to your balance, please contact us directly on Telegram.'}
+                  </p>
                 </div>
               </div>
 
-              {/* Accounts List Cards */}
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {filteredDepositAccounts.map((acc) => {
-                  const isSelected = selectedAccountId === acc.id;
-                  const isCopied = copiedAccount === acc.id;
-                  return (
-                    <div
-                      key={acc.id}
-                      onClick={() => setSelectedAccountId(acc.id)}
-                      className={`p-3 rounded-xl border transition cursor-pointer relative ${
-                        isSelected
-                          ? 'bg-[#182338] border-blue-500 shadow-md ring-1 ring-blue-500/50'
-                          : 'bg-[#0e131d] border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded ${acc.badgeColor}`}>
-                            {acc.badge}
-                          </span>
-                          <span className="font-bold text-white text-xs">{acc.bankName}</span>
-                        </div>
-                        {isSelected && (
-                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                            <Check className="w-3 h-3" /> Selected
-                          </span>
-                        )}
+              {/* Main Telegram Contact Box */}
+              <div className="bg-gradient-to-br from-[#121c2e] via-[#101827] to-[#0c1320] border-2 border-blue-500/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                      <Send className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">
+                        {currentLang === 'am' ? 'ይፋዊ የቴሌግራም ክፍያ' : 'Official Telegram Deposit'}
                       </div>
-
-                      <div className="flex items-center justify-between gap-2 bg-[#121620] px-3 py-1.5 rounded-lg border border-slate-800">
-                        <span className="font-mono font-bold text-yellow-300 text-xs sm:text-sm">
-                          {acc.accountNumber}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyAccount(acc.accountNumber, acc.id);
-                          }}
-                          className="px-2.5 py-1 bg-blue-600/30 hover:bg-blue-600 text-blue-300 hover:text-white rounded text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
-                        >
-                          {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                          <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-
-                      <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
-                        <span>Holder: <strong className="text-slate-300">{acc.accountHolder}</strong></span>
+                      <div className="text-base sm:text-lg font-black font-mono text-white">
+                        {TELEGRAM_HANDLE}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Deposit Amount */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    {currentLang === 'am' ? 'የማስገቢያ መጠን (ብር)' : 'Deposit Amount (ETB)'}:
-                  </label>
-                  <span className="text-[10px] text-slate-400">Min: 20 | Max: 25,000 ETB</span>
+                  </div>
+                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>ONLINE</span>
+                  </span>
                 </div>
-                <input
-                  type="number"
-                  min="20"
-                  max="25000"
-                  required
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(Number(e.target.value))}
-                  className="w-full bg-[#0e131d] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:outline-none focus:border-blue-500"
-                />
-                <div className="flex gap-1.5 mt-1.5">
-                  {[50, 100, 500, 1000, 5000, 25000].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => setDepositAmount(amt)}
-                      className={`flex-1 py-1 rounded-lg text-[10px] font-mono font-bold border transition cursor-pointer ${
-                        depositAmount === amt
-                          ? 'bg-blue-600 text-white border-blue-500'
-                          : 'bg-[#0e131d] text-slate-400 border-slate-800 hover:text-white'
-                      }`}
-                    >
-                      {amt}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              {/* Reference */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                  {currentLang === 'am' ? 'የግብይት ማረጋገጫ ቁጥር (Transaction Reference)' : 'Payment Transaction Reference'}:
-                </label>
-                <input
-                  type="text"
-                  value={txnReference}
-                  onChange={(e) => setTxnReference(e.target.value)}
-                  placeholder="e.g. FT260845920... or Telebirr Txn"
-                  className="w-full bg-[#0e131d] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                {/* Primary Telegram Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <a
+                    href={TELEGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-3 px-4 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black rounded-xl text-xs sm:text-sm transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{currentLang === 'am' ? 'በቴሌግራም ያግኙን' : 'Contact us on Telegram'}</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
 
-              {/* Upload Receipt */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                  {currentLang === 'am' ? 'ደረሰኝ ያያይዙ (Photo / PDF / Screenshot)' : 'Attach Receipt (Photo, PDF, Screenshot)'}:
-                </label>
-                <div className="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-xl p-3 text-center bg-[#0e131d] transition">
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="receipt-file-upload"
-                  />
-                  <label htmlFor="receipt-file-upload" className="cursor-pointer flex flex-col items-center gap-1.5">
-                    <UploadCloud className="w-6 h-6 text-blue-400" />
-                    {receiptFile ? (
-                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                        <FileText className="w-3.5 h-3.5" /> {receiptFile.name} ({(receiptFile.size / 1024).toFixed(1)} KB)
-                      </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyTelegram}
+                    className="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {copiedTelegram ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-400">Copied {TELEGRAM_HANDLE}!</span>
+                      </>
                     ) : (
                       <>
-                        <span className="text-xs font-semibold text-slate-300">
-                          {currentLang === 'am' ? 'ደረሰኝ ለመጫን እዚህ ይጫኑ' : 'Click to upload receipt photo / PDF'}
-                        </span>
-                        <span className="text-[10px] text-slate-500">Supports JPG, PNG, PDF receipts</span>
+                        <Copy className="w-4 h-4 text-blue-400" />
+                        <span>Copy {TELEGRAM_HANDLE}</span>
                       </>
                     )}
-                  </label>
+                  </button>
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 flex items-center gap-2">
-                <Clock className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>
-                  {currentLang === 'am'
-                    ? 'ጥያቄዎ እንደተላከ የአስተዳዳሪ ማረጋገጫ ይጠብቁ። አስተዳዳሪው እንዳረጋገጠ ገንዘቡ ወዲያውኑ ገቢ ይደረጋል።'
-                    : 'Please wait for admin approval. Once approved, the deposit amount will be credited to your balance.'}
-                </span>
+              {/* 3 Step Instructions */}
+              <div className="bg-[#0e1420] border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                <div className="font-bold text-xs text-slate-200 flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-amber-400" />
+                  <span>{currentLang === 'am' ? 'እንዴት ገንዘብ ማስገባት እንደሚቻል (How to Deposit):' : 'How to Deposit via Telegram:'}</span>
+                </div>
+
+                <div className="space-y-2 text-[11px] text-slate-300">
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      <strong className="text-white">
+                        {currentLang === 'am' ? 'ቴሌግራም ይክፈቱ፡' : 'Open Telegram:'}
+                      </strong>{' '}
+                      {currentLang === 'am'
+                        ? 'ከላይ ያለውን ቁልፍ ይጫኑ ወይም በቴሌግራም @Chartebetpayment ብለው ይፈልጉ።'
+                        : 'Click the button above or search for @Chartebetpayment on Telegram.'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <div>
+                      <strong className="text-white">
+                        {currentLang === 'am' ? 'መረጃዎን ይላኩ፡' : 'Send Your Details:'}
+                      </strong>{' '}
+                      {currentLang === 'am'
+                        ? `የቻርቴቤት መለያ ቁጥርዎን (${user.id}) ወይም ስምዎን እና ማስገባት የሚፈልጉትን የብር መጠን ይንገሯቸው።`
+                        : `Send your Account ID (${user.id}) or username (${user.username}) and the amount you want to deposit.`}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <div>
+                      <strong className="text-white">
+                        {currentLang === 'am' ? 'ክፍያውን ያጠናቁ፡' : 'Instant Top-Up:'}
+                      </strong>{' '}
+                      {currentLang === 'am'
+                        ? 'ወኪሉ የሚሰጥዎትን የክፍያ አማራጭ በመጠቀም ከከፈሉ በኋላ ደረሰኝ ይላኩላቸው፤ ቀሪ ሒሳብዎ ወዲያውኑ ይገባል!'
+                        : 'Follow the agent payment instructions and send the transfer screenshot. Your balance will be credited right away!'}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm transition shadow-lg shadow-emerald-600/20 disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting
-                  ? currentLang === 'am' ? 'በመላክ ላይ...' : 'Submitting Deposit...'
-                  : currentLang === 'am' ? 'ማስገቢያውን አረጋግጥ (Confirm Deposit)' : 'Confirm Deposit & Submit for Approval'}
-              </button>
-            </form>
+              {/* In-App Deposit Notification to Admin */}
+              <div className="border border-slate-800 rounded-xl p-3.5 bg-[#0e131d]/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-300">
+                    {currentLang === 'am' ? 'የማስገቢያ ጥያቄ ለአስተዳዳሪ መመዝገብያ' : 'Notify Admin In-App (Optional)'}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">Min: 20 ETB</span>
+                </div>
+
+                <form onSubmit={handleDepositSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                      {currentLang === 'am' ? 'የማስገቢያ መጠን (ብር)' : 'Deposit Amount (ETB)'}:
+                    </label>
+                    <input
+                      type="number"
+                      min="20"
+                      max="50000"
+                      required
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(Number(e.target.value))}
+                      className="w-full bg-[#151c28] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:outline-none focus:border-blue-500"
+                    />
+                    <div className="flex gap-1.5 mt-1.5">
+                      {[50, 100, 500, 1000, 5000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setDepositAmount(amt)}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-mono font-bold border transition cursor-pointer ${
+                            depositAmount === amt
+                              ? 'bg-blue-600 text-white border-blue-500'
+                              : 'bg-[#151c28] text-slate-400 border-slate-800 hover:text-white'
+                          }`}
+                        >
+                          {amt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                      {currentLang === 'am' ? 'የእርስዎ የቴሌግራም ስም / ስልክ' : 'Your Telegram Handle or Phone'}:
+                    </label>
+                    <input
+                      type="text"
+                      value={telegramUsername}
+                      onChange={(e) => setTelegramUsername(e.target.value)}
+                      placeholder="@yourtelegram or 09..."
+                      className="w-full bg-[#151c28] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>
+                      {isSubmitting
+                        ? currentLang === 'am' ? 'በመመዝገብ ላይ...' : 'Recording...'
+                        : currentLang === 'am' ? 'የማስገቢያ ጥያቄ አስመዝግብ' : 'Record Deposit Notification'}
+                    </span>
+                  </button>
+                </form>
+              </div>
+            </div>
           )}
 
-          {/* WITHDRAWAL FORM */}
+          {/* ========================================================= */}
+          {/* WITHDRAWAL SECTION */}
+          {/* ========================================================= */}
           {activeMode === 'withdraw' && !successInfo && (
             <form onSubmit={handleWithdrawSubmit} className="space-y-4">
               <div>
@@ -549,6 +540,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <option value="Safaricom M-Pesa">Safaricom M-Pesa</option>
                   <option value="Lion International Bank">Lion International Bank</option>
                   <option value="Buna International Bank">Buna International Bank</option>
+                  <option value="Telegram Agent Support">Telegram Agent Support (@Chartebetpayment)</option>
                 </select>
               </div>
 
@@ -608,7 +600,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <span>24-Hour Withdrawal Limit Policy (Max 25,000 ETB)</span>
                 </div>
                 <p className="leading-relaxed">
-                  Maximum withdrawal is 25,000 ETB in a 24-hour window. If you wish to withdraw more, please request the rest the next day.
+                  Maximum withdrawal is 25,000 ETB in a 24-hour window. Once submitted, admin will approve and transfer funds. You can also message @Chartebetpayment on Telegram for rapid payout verification.
                 </p>
               </div>
 
@@ -619,7 +611,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               >
                 {isSubmitting
                   ? currentLang === 'am' ? 'በማስኬድ ላይ...' : 'Processing...'
-                  : currentLang === 'am' ? 'ማውጣት አረጋግጥ (Confirm Withdrawal)' : 'Confirm Withdrawal & Wait for Admin Approval'}
+                  : currentLang === 'am' ? 'ማውጣት አረጋግጥ (Confirm Withdrawal)' : 'Confirm Withdrawal & Submit for Approval'}
               </button>
             </form>
           )}

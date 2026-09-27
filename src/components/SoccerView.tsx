@@ -44,22 +44,25 @@ export const SoccerView: React.FC<SoccerViewProps> = ({
   const [filterMode, setFilterMode] = useState<'all' | 'live' | 'popular'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLeague, setSelectedLeague] = useState<string>('all');
-  const [refreshCountdown, setRefreshCountdown] = useState<number>(3);
+  const [refreshCountdown, setRefreshCountdown] = useState<number>(60);
 
-  // Real-time scoreboard heartbeat ticker
+  // Real-time scoreboard countdown and refresh ticker
   useEffect(() => {
-    const timer = setInterval(() => {
-      setRefreshCountdown((prev) => {
-        if (prev <= 1) {
-          syncFromApiFootball(DEFAULT_API_FOOTBALL_KEY).catch(() => {});
-          return 3;
-        }
-        return prev - 1;
-      });
+    // 1-second interval solely updates the local countdown number
+    const countdownTimer = setInterval(() => {
+      setRefreshCountdown((prev) => (prev <= 1 ? 60 : prev - 1));
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, []);
+    // Periodic 60-second live scores refresh
+    const refreshTimer = setInterval(() => {
+      onRefreshLive?.();
+    }, 60000);
+
+    return () => {
+      clearInterval(countdownTimer);
+      clearInterval(refreshTimer);
+    };
+  }, [onRefreshLive]);
 
   const filteredMatches = matches.filter((match) => {
     if (activeDay === 'today') {
@@ -143,7 +146,7 @@ export const SoccerView: React.FC<SoccerViewProps> = ({
             <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse shrink-0" />
             <div>
               <div className="font-mono text-[10px] sm:text-[11px] text-emerald-300 font-bold flex items-center gap-1">
-                <span>API-Football</span>
+                <span>100 Real Live Games</span>
                 <span className="text-[9px] bg-emerald-500/20 px-1 py-0.2 rounded font-mono">
                   {refreshCountdown}s
                 </span>

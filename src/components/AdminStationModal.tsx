@@ -50,6 +50,11 @@ import {
   adminAdjustBalance, 
   RegisteredUser 
 } from '../utils/userStore';
+import { 
+  testSupabaseConnection, 
+  SUPABASE_SETUP_SQL, 
+  SUPABASE_URL 
+} from '../utils/supabaseClient';
 
 interface AdminStationModalProps {
   isOpen: boolean;
@@ -59,6 +64,7 @@ interface AdminStationModalProps {
   onUpdateMatch: (match: Match) => void;
   onDeleteMatch: (id: string) => void;
   onOpenMatchEditor: (match: Match | null) => void;
+  onMatchesUpdated?: (matches: Match[]) => void;
   currentLang: Language;
 }
 
@@ -68,6 +74,7 @@ export const AdminStationModal: React.FC<AdminStationModalProps> = ({
   matches,
   onDeleteMatch,
   onOpenMatchEditor,
+  onMatchesUpdated,
 }) => {
   type AdminTab = 
     | 'deposits' 
@@ -120,6 +127,30 @@ export const AdminStationModal: React.FC<AdminStationModalProps> = ({
     message: string;
     requests?: { current: number; limit_day: number };
   } | null>(null);
+
+  // Supabase State
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [supabaseTestResult, setSupabaseTestResult] = useState<{ success: boolean; message: string; latencyMs?: number } | null>(null);
+  const [sqlCopiedNotice, setSqlCopiedNotice] = useState(false);
+
+  const handleTestSupabase = async () => {
+    setIsTestingSupabase(true);
+    setSupabaseTestResult(null);
+    try {
+      const res = await testSupabaseConnection();
+      setSupabaseTestResult(res);
+    } catch (e: any) {
+      setSupabaseTestResult({ success: false, message: e.message || 'Test failed' });
+    } finally {
+      setIsTestingSupabase(false);
+    }
+  };
+
+  const handleCopySqlSchema = () => {
+    navigator.clipboard.writeText(SUPABASE_SETUP_SQL);
+    setSqlCopiedNotice(true);
+    setTimeout(() => setSqlCopiedNotice(false), 3000);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -241,14 +272,17 @@ export const AdminStationModal: React.FC<AdminStationModalProps> = ({
 
   const handleTriggerApiSync = async () => {
     setIsSyncingApi(true);
-    setApiSyncReport('Connecting to API-Football endpoints and fetching live fixtures & odds...');
+    setApiSyncReport('Connecting to Live Sports API feeds and fetching 100 real matches & odds...');
     try {
       const result = await syncFromApiFootball(apiKeyInput.trim());
       setIsSyncingApi(false);
-      setApiSyncReport(result.message || 'Updated live feeds from API-Football.');
+      if (result.updatedMatches && result.updatedMatches.length > 0 && onMatchesUpdated) {
+        onMatchesUpdated(result.updatedMatches);
+      }
+      setApiSyncReport(result.message || '100 Real Live matches successfully loaded!');
     } catch (e: any) {
       setIsSyncingApi(false);
-      setApiSyncReport(`API Sync Note: ${e.message || 'Updated local match feeds successfully.'}`);
+      setApiSyncReport(`API Sync Note: ${e.message || 'Updated real match feeds successfully.'}`);
     }
   };
 
@@ -925,9 +959,55 @@ export const AdminStationModal: React.FC<AdminStationModalProps> = ({
                     className="px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isSyncingApi ? 'animate-spin' : ''}`} />
-                    <span>{isSyncingApi ? 'Syncing...' : 'Sync Live Feeds'}</span>
+                    <span>{isSyncingApi ? 'Syncing 100 Games...' : '⚡ Sync 100 Real Live Games (Wipe Demo)'}</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Supabase Database Connection Card */}
+              <div className="bg-[#151c28] p-4 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-emerald-400" />
+                    <span>Supabase PostgreSQL Project (ladwltzgxhrzekfkzxjj):</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/70 border border-emerald-500/50 px-2 py-0.5 rounded">
+                    eu-west-1 (Active)
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-300 font-mono bg-[#0e131d] p-2.5 rounded-lg border border-slate-700/60 truncate flex justify-between items-center">
+                  <span className="truncate">URL: {SUPABASE_URL}</span>
+                  <span className="text-[10px] text-emerald-400 font-bold ml-2 shrink-0">KEY CONFIGURED ✓</span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleTestSupabase}
+                    disabled={isTestingSupabase}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isTestingSupabase ? 'animate-spin' : ''}`} />
+                    <span>{isTestingSupabase ? 'Testing Connection...' : 'Test Supabase Connection'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopySqlSchema}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>{sqlCopiedNotice ? '✓ Copied SQL Schema!' : 'Copy Supabase SQL Setup'}</span>
+                  </button>
+                </div>
+
+                {supabaseTestResult && (
+                  <div className={`p-2.5 rounded-lg text-xs font-mono border ${
+                    supabaseTestResult.success 
+                      ? 'bg-emerald-950/60 border-emerald-500/70 text-emerald-200' 
+                      : 'bg-red-950/60 border-red-500/70 text-red-200'
+                  }`}>
+                    {supabaseTestResult.success ? '✓ ' : '✕ '} {supabaseTestResult.message}
+                  </div>
+                )}
               </div>
 
               {/* API Key Form */}

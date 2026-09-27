@@ -84,12 +84,19 @@ export default function App() {
   const [user, setUser] = useState<UserAccount>(() => {
     try {
       const saved = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Ensure guest or initial account has 20 ETB bonus if 0
+        if (!parsed.isLoggedIn && (parsed.balance === 0 || parsed.balance === undefined)) {
+          parsed.balance = 20.0;
+        }
+        return parsed;
+      }
     } catch (e) {}
     return {
       id: 'GUEST_001',
       username: 'Guest Player',
-      balance: 0,
+      balance: 20.0, // Every account starts with bonus 20 birr
       currency: 'ETB',
       isLoggedIn: false,
       role: 'customer',
@@ -116,7 +123,7 @@ export default function App() {
     const guest: UserAccount = {
       id: `GUEST_${Math.floor(100 + Math.random() * 900)}`,
       username: 'Guest Player',
-      balance: 0,
+      balance: 20.0, // Every account starts with bonus 20 birr
       currency: 'ETB',
       isLoggedIn: false,
       role: 'customer',
@@ -126,16 +133,24 @@ export default function App() {
 
   // Matches State
   const [matches, setMatches] = useState<Match[]>(() => getStoredMatches());
+  const [isFetchingRealMatches, setIsFetchingRealMatches] = useState(false);
+
+  const handleRefreshRealMatches = async () => {
+    setIsFetchingRealMatches(true);
+    try {
+      const res = await syncFromApiFootball(DEFAULT_API_FOOTBALL_KEY);
+      if (res.updatedMatches && res.updatedMatches.length > 0) {
+        setMatches(res.updatedMatches);
+        saveStoredMatches(res.updatedMatches);
+      }
+    } catch (e) {
+    } finally {
+      setIsFetchingRealMatches(false);
+    }
+  };
 
   useEffect(() => {
-    syncFromApiFootball(DEFAULT_API_FOOTBALL_KEY)
-      .then((res) => {
-        if (res.updatedMatches && res.updatedMatches.length > 0) {
-          setMatches(res.updatedMatches);
-          saveStoredMatches(res.updatedMatches);
-        }
-      })
-      .catch(() => {});
+    handleRefreshRealMatches();
   }, []);
 
   const handleSaveMatch = (m: Match) => {
@@ -292,6 +307,8 @@ export default function App() {
                 currentLang={currentLang}
                 isDarkMode={isDarkMode}
                 userRole={user.role}
+                onRefreshLive={handleRefreshRealMatches}
+                isFetchingLive={isFetchingRealMatches}
                 onAdminEditMatch={(m: Match) => {
                   setEditingMatch(m);
                   setMatchEditorOpen(true);
@@ -326,6 +343,8 @@ export default function App() {
                 currentLang={currentLang}
                 isDarkMode={isDarkMode}
                 userRole={user.role}
+                onRefreshLive={handleRefreshRealMatches}
+                isFetchingLive={isFetchingRealMatches}
                 onAdminEditMatch={(m: Match) => {
                   setEditingMatch(m);
                   setMatchEditorOpen(true);
@@ -548,6 +567,7 @@ export default function App() {
         onAddMatch={handleAddMatch}
         onUpdateMatch={handleSaveMatch}
         onDeleteMatch={handleDeleteMatch}
+        onMatchesUpdated={(newMatches) => setMatches(newMatches)}
         onOpenMatchEditor={(m) => {
           setEditingMatch(m);
           setMatchEditorOpen(true);
