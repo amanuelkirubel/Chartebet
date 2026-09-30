@@ -34,12 +34,73 @@ bot.on('contact', async (ctx) => {
     Markup.keyboard([
       ['🎮 Play Games'],
       ['🎁 Invite Friends', '🆘 Support']
-    ]).resize()
+          ]).resize()
   );
 });
 
+// 3. Command Handlers
+bot.command('website', (ctx) => {
+  return ctx.reply(
+    '🌐 Visit CharteBet online:',
+    Markup.inlineKeyboard([
+      [Markup.button.url('🌐 Open Website', GAME_URL)]
+    ])
+  );
+});
+
+bot.command('games', (ctx) => {
+  return ctx.reply(
+    '🎮 Play Aviator, Chicken Road, Keno, and more!',
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('🚀 Play Games', GAME_URL)]
+    ])
+  );
+});
+
+bot.command('sports', (ctx) => {
+  return ctx.reply(
+    '⚽ Live sports betting and match odds:',
+    Markup.inlineKeyboard([
+      [Markup.button.url('⚽ Sports Betting', GAME_URL)]
+    ])
+  );
+});
+
+bot.command('wallet', (ctx) => {
+  return ctx.reply(
+    '💳 Wallet & Balance Management:',
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('💰 Open Wallet', GAME_URL)]
+    ])
+  );
+});
+
+bot.command('help', (ctx) => {
+  return ctx.reply('🆘 Customer support & game rules:\n\nContact support or launch the web app to view rules.');
+});
+
+// 4. Menu Button Handlers
+bot.hears('🎮 Play Games', (ctx) => {
+  return ctx.reply(
+    '🎰 Ready to play?',
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('8️⃣ Open Game App', GAME_URL)]
+    ])
+  );
+});
+
+bot.hears('🎁 Invite Friends', (ctx) => {
+  return ctx.reply('🎁 Share your referral link with friends to earn bonus rewards!');
+});
+
+bot.hears('🆘 Support', (ctx) => {
+  return ctx.reply('🆘 Need help? Contact our support team.');
+});
+
+// Start Telegram Bot
 bot.launch();
-console.log('Bot server is running...');
+console.log('Bot polling service initiated.');
+
 // Minimal HTTP server so Render Web Services pass health checks
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
