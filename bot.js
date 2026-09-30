@@ -1,12 +1,12 @@
 import { Telegraf, Markup } from 'telegraf';
 import http from 'http';
 
-const BOT_TOKEN = '8612862555:AAEs2aeeB2WSg3WCC5XMEUka2NBuoOpCGHA';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8612862555:AAEs2aeeB2WSg3WCC5XMEUka2NBuoOpCGHA';
 const GAME_URL = 'https://chartebet.onrender.com/';
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 1. Triggered when user types /start
+// 1. /start command
 bot.command('start', (ctx) => {
   return ctx.reply(
     '👋 Welcome! Please share your phone number to register:',
@@ -16,29 +16,7 @@ bot.command('start', (ctx) => {
   );
 });
 
-// 2. Triggered when user shares their phone number
-bot.on('contact', async (ctx) => {
-  const phoneNumber = ctx.message.contact.phone_number;
-
-  await ctx.reply(`✅ Thanks! You're now registered with ${phoneNumber}.`);
-
-  await ctx.reply(
-    "🎰 It's Game Time! Good Luck!",
-    Markup.inlineKeyboard([
-      [Markup.button.webApp('8️⃣ Start Playing', GAME_URL)]
-    ])
-  );
-
-  return ctx.reply(
-    '🔻 Discover more in the menu! 🔻',
-    Markup.keyboard([
-      ['🎮 Play Games'],
-      ['🎁 Invite Friends', '🆘 Support']
-          ]).resize()
-  );
-});
-
-// 3. Command Handlers
+// 2. /website command
 bot.command('website', (ctx) => {
   return ctx.reply(
     '🌐 Visit CharteBet online:',
@@ -48,6 +26,7 @@ bot.command('website', (ctx) => {
   );
 });
 
+// 3. /games command
 bot.command('games', (ctx) => {
   return ctx.reply(
     '🎮 Play Aviator, Chicken Road, Keno, and more!',
@@ -57,6 +36,7 @@ bot.command('games', (ctx) => {
   );
 });
 
+// 4. /sports command
 bot.command('sports', (ctx) => {
   return ctx.reply(
     '⚽ Live sports betting and match odds:',
@@ -66,6 +46,7 @@ bot.command('sports', (ctx) => {
   );
 });
 
+// 5. /wallet command
 bot.command('wallet', (ctx) => {
   return ctx.reply(
     '💳 Wallet & Balance Management:',
@@ -75,11 +56,39 @@ bot.command('wallet', (ctx) => {
   );
 });
 
+// 6. /help command
 bot.command('help', (ctx) => {
-  return ctx.reply('🆘 Customer support & game rules:\n\nContact support or launch the web app to view rules.');
+  return ctx.reply(
+    '🆘 Need assistance?\n\n' +
+    '💬 Support: @Chartebetsupport\n' +
+    '💳 Payments: @Chartebetpayment'
+  );
 });
 
-// 4. Menu Button Handlers
+// 7. Contact share handler (Passes phone to WebApp for auto sign-in)
+bot.on('contact', async (ctx) => {
+  const phoneNumber = ctx.message.contact.phone_number;
+  const userGameUrl = `${GAME_URL}?phone=${encodeURIComponent(phoneNumber)}`;
+
+  await ctx.reply(`✅ Thanks! You're now registered with ${phoneNumber}.`);
+
+  await ctx.reply(
+    "🎰 It's Game Time! Good Luck!",
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('8️⃣ Start Playing', userGameUrl)]
+    ])
+  );
+
+  return ctx.reply(
+    '🔻 Discover more in the menu! 🔻',
+    Markup.keyboard([
+      ['🎮 Play Games'],
+      ['🎁 Invite Friends', '🆘 Support']
+    ]).resize()
+  );
+});
+
+// 8. Reply Keyboard Button Handlers
 bot.hears('🎮 Play Games', (ctx) => {
   return ctx.reply(
     '🎰 Ready to play?',
@@ -90,11 +99,24 @@ bot.hears('🎮 Play Games', (ctx) => {
 });
 
 bot.hears('🎁 Invite Friends', (ctx) => {
-  return ctx.reply('🎁 Share your referral link with friends to earn bonus rewards!');
+  const userId = ctx.from.id;
+  const refLink = `https://t.me/Chartebetbot?start=${userId}`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join CharteBet and start playing!')}`;
+
+  return ctx.reply(
+    `🎁 Invite your friends and earn bonus rewards!\n\nYour Referral Link:\n${refLink}`,
+    Markup.inlineKeyboard([
+      [Markup.button.url('📲 Share Link', shareUrl)]
+    ])
+  );
 });
 
 bot.hears('🆘 Support', (ctx) => {
-  return ctx.reply('🆘 Need help? Contact our support team.');
+  return ctx.reply(
+    '🆘 Need assistance or payment help?\n\n' +
+    '💬 Customer Support: @Chartebetsupport\n' +
+    '💳 Payments & Deposits: @Chartebetpayment'
+  );
 });
 
 // Start Telegram Bot
