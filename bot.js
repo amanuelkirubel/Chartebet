@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import http from 'http';
 
-const BOT_TOKEN = process.env.BOT_TOKEN || '8612862555:AAEs2aeeB2WSg3WCC5XMEUka2NBuoOpCGHA';
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const GAME_URL = 'https://chartebet.onrender.com/';
 
 const bot = new Telegraf(BOT_TOKEN);
