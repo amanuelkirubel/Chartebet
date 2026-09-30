@@ -1,5 +1,5 @@
-
-const { Telegraf, Markup } = require('telegraf');
+import { Telegraf, Markup } from 'telegraf';
+import http from 'http';
 
 const BOT_TOKEN = '8612862555:AAEs2aeeB2WSg3WCC5XMEUka2NBuoOpCGHA';
 const GAME_URL = 'https://chartebet.onrender.com/';
@@ -40,3 +40,11 @@ bot.on('contact', async (ctx) => {
 
 bot.launch();
 console.log('Bot server is running...');
+// Minimal HTTP server so Render Web Services pass health checks
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Chartebet Telegram Bot Status: Active\n');
+}).listen(PORT, () => {
+  console.log(`Web server listening on port ${PORT}`);
+});
